@@ -1,0 +1,14 @@
+.card {
+    display: flex;
+    flex-direction: column;
+    border: 1px solid lightgray;
+}
+
+.captionContainer {
+    background: white;
+    padding: 8px;
+}
+
+.media {
+    max-width: 300px;
+}
