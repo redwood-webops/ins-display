@@ -9,6 +9,51 @@
     padding: 8px;
 }
 
+.carousel {
+    position: relative;
+    overflow: hidden;
+    width: 300px;
+}
+
+.track {
+    display: flex;
+    transition: transform 0.3s ease;
+}
+
+.chevron {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    background: rgba(0, 0, 0, 0.3);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 28px;
+    height: 28px;
+    font-size: 18px;
+    line-height: 28px;
+    text-align: center;
+    padding: 0;
+    cursor: pointer;
+    z-index: 1;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+.carousel:hover .chevron {
+    opacity: 1;
+}
+
+.chevronLeft {
+    left: 8px;
+}
+
+.chevronRight {
+    right: 8px;
+}
+
 .media {
+    width: 100%;
     max-width: 300px;
+    flex: 0 0 100%;
 }
