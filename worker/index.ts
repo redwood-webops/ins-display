@@ -54,6 +54,50 @@ async function refreshAccessToken(
   return { token: data.access_token, expiresAt };
 }
 
+async function refreshUserPosts(env: Env, userId: string, accessToken: string): Promise<number> {
+  const mediaUrl = new URL(`https://graph.instagram.com/${userId}/media`);
+  mediaUrl.searchParams.set(
+    'fields',
+    'id,caption,media_type,media_url,permalink,timestamp,children{id,media_type,media_url,permalink,timestamp}'
+  );
+  mediaUrl.searchParams.set('access_token', accessToken);
+  mediaUrl.searchParams.set('limit', '10');
+
+  const mediaRes = await fetch(mediaUrl.toString());
+  if (!mediaRes.ok) {
+    throw new Error(`Failed to fetch posts: ${mediaRes.status}`);
+  }
+
+  const mediaData = await mediaRes.json<InstagramMediaResponse>();
+  const statements: D1PreparedStatement[] = [];
+
+  for (const post of mediaData.data) {
+    statements.push(
+      env.DB.prepare(
+        `INSERT OR REPLACE INTO posts (id, caption, media_type, media_url, permalink, timestamp)
+         VALUES (?, ?, ?, ?, ?, ?)`
+      ).bind(post.id, post.caption ?? null, post.media_type, post.media_url ?? null, post.permalink ?? null, post.timestamp)
+    );
+
+    if (post.children?.data) {
+      for (const child of post.children.data) {
+        statements.push(
+          env.DB.prepare(
+            `INSERT OR REPLACE INTO posts (id, caption, media_type, media_url, permalink, timestamp)
+             VALUES (?, ?, ?, ?, ?, ?)`
+          ).bind(child.id, null, child.media_type, child.media_url ?? null, child.permalink ?? null, child.timestamp)
+        );
+        statements.push(
+          env.DB.prepare(`INSERT OR IGNORE INTO children (parent_id, child_id) VALUES (?, ?)`).bind(post.id, child.id)
+        );
+      }
+    }
+  }
+
+  await env.DB.batch(statements);
+  return mediaData.data.length;
+}
+
 async function handleRequest(request: Request, env: Env): Promise<Response> {
   const url = new URL(request.url);
   const { pathname: rawPathname } = url;
@@ -217,76 +261,15 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
       return new Response('User not found', { status: 404 });
     }
 
-    // Fetch posts from Instagram API
-    const mediaUrl = new URL(`https://graph.instagram.com/${user.id}/media`);
-    mediaUrl.searchParams.set(
-      'fields',
-      'id,caption,media_type,media_url,permalink,timestamp,children{id,media_type,media_url,permalink,timestamp}'
-    );
-    mediaUrl.searchParams.set('access_token', user.access_token);
-    mediaUrl.searchParams.set('limit', '10');
-
-    const mediaRes = await fetch(mediaUrl.toString());
-    if (!mediaRes.ok) {
-      return new Response(`Failed to fetch posts: ${mediaRes.status}`, { status: 502 });
+    try {
+      const postsCount = await refreshUserPosts(env, user.id, user.access_token);
+      return Response.json({
+        success: true,
+        posts_count: postsCount,
+      });
+    } catch (error) {
+      return new Response(`Failed to refresh posts: ${error}`, { status: 502 });
     }
-
-    const mediaData = await mediaRes.json<InstagramMediaResponse>();
-
-    // Build statements for batch transaction
-    const statements: D1PreparedStatement[] = [];
-
-    for (const post of mediaData.data) {
-      // Insert/update parent post
-      statements.push(
-        env.DB.prepare(
-          `INSERT OR REPLACE INTO posts (id, caption, media_type, media_url, permalink, timestamp)
-           VALUES (?, ?, ?, ?, ?, ?)`
-        ).bind(
-          post.id,
-          post.caption ?? null,
-          post.media_type,
-          post.media_url ?? null,
-          post.permalink ?? null,
-          post.timestamp
-        )
-      );
-
-      // Handle carousel children
-      if (post.children?.data) {
-        for (const child of post.children.data) {
-          // Insert child as a post
-          statements.push(
-            env.DB.prepare(
-              `INSERT OR REPLACE INTO posts (id, caption, media_type, media_url, permalink, timestamp)
-               VALUES (?, ?, ?, ?, ?, ?)`
-            ).bind(
-              child.id,
-              null,
-              child.media_type,
-              child.media_url ?? null,
-              child.permalink ?? null,
-              child.timestamp
-            )
-          );
-
-          // Insert parent-child relationship
-          statements.push(
-            env.DB.prepare(
-              `INSERT OR IGNORE INTO children (parent_id, child_id) VALUES (?, ?)`
-            ).bind(post.id, child.id)
-          );
-        }
-      }
-    }
-
-    // Execute all statements in a single transaction
-    await env.DB.batch(statements);
-
-    return Response.json({
-      success: true,
-      posts_count: mediaData.data.length,
-    });
   }
 
   if (pathname === '/api/posts') {
@@ -345,10 +328,14 @@ export default {
 
     for (const user of users) {
       try {
-        await refreshAccessToken(env, user.id, user.access_token);
+        const { token } = await refreshAccessToken(env, user.id, user.access_token);
         console.log(`Refreshed token for user ${user.id}`);
+
+        // Refresh posts after auth refresh
+        const postsCount = await refreshUserPosts(env, user.id, token);
+        console.log(`Refreshed ${postsCount} posts for user ${user.id}`);
       } catch (error) {
-        console.error(`Failed to refresh token for user ${user.id}:`, error);
+        console.error(`Failed to refresh for user ${user.id}:`, error);
       }
     }
   },

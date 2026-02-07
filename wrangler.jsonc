@@ -24,7 +24,7 @@
     },
     "main": "./worker/index.ts",
 	"triggers": {
-		"crons": ["0 0 * * *"]
+		"crons": ["0 * * * *"]
 	}
 	/**
 	 * Smart Placement
