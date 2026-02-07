@@ -24,7 +24,8 @@ CREATE TABLE IF NOT EXISTS users (
     profile_picture_url TEXT,
     followers_count INTEGER,
     media_count INTEGER,
-    access_token TEXT
+    access_token TEXT,
+    access_token_expires_at TEXT
 );
 
 INSERT INTO posts (id, caption, media_type, media_url, permalink, timestamp)

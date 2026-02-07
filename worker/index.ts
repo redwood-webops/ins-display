@@ -27,6 +27,32 @@ function isAllowedOrigin(origin: string): boolean {
   });
 }
 
+async function refreshAccessToken(
+  env: Env,
+  userId: string,
+  currentToken: string
+): Promise<{ token: string; expiresAt: string }> {
+  const refreshUrl = new URL('https://graph.instagram.com/refresh_access_token');
+  refreshUrl.searchParams.set('grant_type', 'ig_refresh_token');
+  refreshUrl.searchParams.set('access_token', currentToken);
+
+  const res = await fetch(refreshUrl.toString());
+  if (!res.ok) {
+    throw new Error(`Failed to refresh token: ${res.status}`);
+  }
+
+  const data = await res.json<{ access_token: string; token_type: string; expires_in: number }>();
+  const expiresAt = new Date(Date.now() + data.expires_in * 1000).toISOString();
+
+  await env.DB.prepare(
+    `UPDATE users SET access_token = ?, access_token_expires_at = ? WHERE id = ?`
+  )
+    .bind(data.access_token, expiresAt, userId)
+    .run();
+
+  return { token: data.access_token, expiresAt };
+}
+
 async function handleRequest(request: Request, env: Env): Promise<Response> {
   const url = new URL(request.url);
   const { pathname: rawPathname } = url;
@@ -125,16 +151,19 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
       return new Response('Failed to exchange for long-lived token', { status: 502 });
     }
 
-    const { access_token: longLivedToken } = await longLivedRes.json<{
+    const longLivedTokenData = await longLivedRes.json<{
       access_token: string;
       token_type: string;
       expires_in: number;
     }>();
 
+    const longLivedToken = longLivedTokenData.access_token;
+    const expiresAt = new Date(Date.now() + longLivedTokenData.expires_in * 1000).toISOString();
+
     // Upsert user into D1
     await env.DB.prepare(
-      `INSERT OR REPLACE INTO users (id, name, username, profile_picture_url, followers_count, media_count, access_token)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`
+      `INSERT OR REPLACE INTO users (id, name, username, profile_picture_url, followers_count, media_count, access_token, access_token_expires_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
     )
       .bind(
         userInfo.id,
@@ -143,11 +172,34 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
         userInfo.profile_picture_url ?? null,
         userInfo.followers_count ?? null,
         userInfo.media_count ?? null,
-        longLivedToken
+        longLivedToken,
+        expiresAt
       )
       .run();
 
     return Response.redirect(`${origin}/`, 302);
+  }
+
+  if (pathname === '/api/auth/refresh') {
+    const username = url.searchParams.get('user');
+    if (!username) {
+      return new Response('Missing user parameter', { status: 400 });
+    }
+
+    const user = await env.DB.prepare('SELECT id, access_token FROM users WHERE username = ?')
+      .bind(username)
+      .first<{ id: string; access_token: string }>();
+
+    if (!user) {
+      return new Response('User not found', { status: 404 });
+    }
+
+    try {
+      const { expiresAt } = await refreshAccessToken(env, user.id, user.access_token);
+      return Response.json({ success: true, expires_at: expiresAt });
+    } catch (error) {
+      return new Response(`Failed to refresh token: ${error}`, { status: 502 });
+    }
   }
 
   if (pathname === '/api/posts') {
@@ -201,6 +253,29 @@ export default {
       return new Response(`Internal Server Error, ${errorStr}`, {
         status: 500,
       });
+    }
+  },
+
+  async scheduled(_controller: ScheduledController, env: Env, _ctx: ExecutionContext): Promise<void> {
+    // Find users with tokens expiring in the next 5 days
+    const fiveDaysFromNow = new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString();
+
+    const { results: users } = await env.DB.prepare(
+      `SELECT id, access_token FROM users
+       WHERE access_token IS NOT NULL
+       AND access_token_expires_at IS NOT NULL
+       AND access_token_expires_at < ?`
+    )
+      .bind(fiveDaysFromNow)
+      .run<{ id: string; access_token: string }>();
+
+    for (const user of users) {
+      try {
+        await refreshAccessToken(env, user.id, user.access_token);
+        console.log(`Refreshed token for user ${user.id}`);
+      } catch (error) {
+        console.error(`Failed to refresh token for user ${user.id}:`, error);
+      }
     }
   },
 } satisfies ExportedHandler<Env>;

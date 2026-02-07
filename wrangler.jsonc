@@ -22,7 +22,10 @@
         "/api/*"
       ]
     },
-    "main": "./worker/index.ts"
+    "main": "./worker/index.ts",
+	"triggers": {
+		"crons": ["0 0 * * *"]
+	}
 	/**
 	 * Smart Placement
 	 * https://developers.cloudflare.com/workers/configuration/smart-placement/#smart-placement
