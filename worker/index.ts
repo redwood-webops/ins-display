@@ -12,6 +12,7 @@
  */
 
 import type { Post } from '../src/types/post';
+import type { InstagramMediaResponse } from './types';
 
 const ALLOWED_USERNAMES = ['redwoodkyudojo', 'redwood_webops'];
 const ALLOWED_ORIGINS = [
@@ -202,42 +203,115 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
     }
   }
 
-  if (pathname === '/api/posts') {
-    // Get three most recent posts with caption (meaning they're not
-    // child posts of a carousel), then get the children of each
-    // post (if exists), assemble the post objects and return.
-    let { results: posts } = await env.DB.prepare(
-      'SELECT * FROM posts WHERE caption IS NOT NULL ORDER BY timestamp DESC LIMIT 3'
-    ).run<Post>();
-
-    if (posts.length === 0) {
-      return Response.json([]);
+  if (pathname === '/api/posts/refresh') {
+    const username = url.searchParams.get('user');
+    if (!username) {
+      return new Response('Missing user parameter', { status: 400 });
     }
 
-    const parentIds = posts.map((p) => p.id);
+    const user = await env.DB.prepare('SELECT id, access_token FROM users WHERE username = ?')
+      .bind(username)
+      .first<{ id: string; access_token: string }>();
 
-    const placeholders = parentIds.map(() => '?').join(', ');
-    const { results: childRows } = await env.DB.prepare(
-      `SELECT c.parent_id, p.* FROM children c JOIN posts p ON c.child_id = p.id WHERE c.parent_id IN (${placeholders})`
-    )
-      .bind(...parentIds)
-      .run<Post & { parent_id: string }>();
+    if (!user) {
+      return new Response('User not found', { status: 404 });
+    }
 
-    const childrenByParent = new Map<string, Post[]>();
-    for (const row of childRows) {
-      const { parent_id, ...child } = row;
-      if (!childrenByParent.has(parent_id)) {
-        childrenByParent.set(parent_id, []);
+    // Fetch posts from Instagram API
+    const mediaUrl = new URL(`https://graph.instagram.com/${user.id}/media`);
+    mediaUrl.searchParams.set(
+      'fields',
+      'id,caption,media_type,media_url,permalink,timestamp,children{id,media_type,media_url,permalink,timestamp}'
+    );
+    mediaUrl.searchParams.set('access_token', user.access_token);
+    mediaUrl.searchParams.set('limit', '10');
+
+    const mediaRes = await fetch(mediaUrl.toString());
+    if (!mediaRes.ok) {
+      return new Response(`Failed to fetch posts: ${mediaRes.status}`, { status: 502 });
+    }
+
+    const mediaData = await mediaRes.json<InstagramMediaResponse>();
+
+    // Build statements for batch transaction
+    const statements: D1PreparedStatement[] = [];
+
+    for (const post of mediaData.data) {
+      // Insert/update parent post
+      statements.push(
+        env.DB.prepare(
+          `INSERT OR REPLACE INTO posts (id, caption, media_type, media_url, permalink, timestamp)
+           VALUES (?, ?, ?, ?, ?, ?)`
+        ).bind(
+          post.id,
+          post.caption ?? null,
+          post.media_type,
+          post.media_url ?? null,
+          post.permalink ?? null,
+          post.timestamp
+        )
+      );
+
+      // Handle carousel children
+      if (post.children?.data) {
+        for (const child of post.children.data) {
+          // Insert child as a post
+          statements.push(
+            env.DB.prepare(
+              `INSERT OR REPLACE INTO posts (id, caption, media_type, media_url, permalink, timestamp)
+               VALUES (?, ?, ?, ?, ?, ?)`
+            ).bind(
+              child.id,
+              null,
+              child.media_type,
+              child.media_url ?? null,
+              child.permalink ?? null,
+              child.timestamp
+            )
+          );
+
+          // Insert parent-child relationship
+          statements.push(
+            env.DB.prepare(
+              `INSERT OR IGNORE INTO children (parent_id, child_id) VALUES (?, ?)`
+            ).bind(post.id, child.id)
+          );
+        }
       }
-      childrenByParent.get(parent_id)!.push(child as Post);
     }
 
-    posts = posts.map((post) => ({
-      ...post,
-      children: childrenByParent.get(post.id) ?? null,
-    }));
+    // Execute all statements in a single transaction
+    await env.DB.batch(statements);
 
-    return Response.json(posts);
+    return Response.json({
+      success: true,
+      posts_count: mediaData.data.length,
+    });
+  }
+
+  if (pathname === '/api/posts') {
+    const idx = parseInt(url.searchParams.get('idx') ?? '0', 10);
+    if (isNaN(idx) || idx < 0) {
+      return new Response('Invalid idx parameter', { status: 400 });
+    }
+
+    const post = await env.DB.prepare(
+      'SELECT * FROM posts WHERE caption IS NOT NULL ORDER BY timestamp DESC LIMIT 1 OFFSET ?'
+    ).bind(idx).first<Post>();
+
+    if (!post) {
+      return Response.json(null);
+    }
+
+    // Fetch children for this post
+    const { results: childRows } = await env.DB.prepare(
+      `SELECT p.* FROM children c JOIN posts p ON c.child_id = p.id WHERE c.parent_id = ?`
+    ).bind(post.id).run<Post>();
+
+    return Response.json({
+      ...post,
+      children: childRows.length > 0 ? childRows : null,
+    });
   }
 
   return new Response(null, { status: 404 });

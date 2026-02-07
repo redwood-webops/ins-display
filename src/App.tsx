@@ -4,22 +4,24 @@ import InsCard from './InsCard';
 import styles from './App.module.scss';
 
 function App() {
-  const [posts, setPosts] = React.useState<Post[]>([]);
+  const [post, setPost] = React.useState<Post | null>(null);
+
   React.useEffect(() => {
     (async () => {
-      const resp = await fetch('/api/posts');
+      const idx = new URLSearchParams(window.location.search).get('idx') ?? '0';
+      const resp = await fetch(`/api/posts?idx=${idx}`);
       const data = await resp.json();
-      setPosts(data);
+      setPost(data);
     })();
   }, []);
 
+  if (!post) {
+    return null;
+  }
+
   return (
     <div className={styles.postsContainer}>
-      {posts.map((post) => (
-        <div key={post.id}>
-          <InsCard post={post} />
-        </div>
-      ))}
+      <InsCard post={post} />
     </div>
   );
 }
