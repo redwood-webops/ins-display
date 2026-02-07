@@ -56,13 +56,30 @@ function Media({ post }: Props) {
 
 function Carousel({ children }: { children: Post[] }) {
   const [index, setIndex] = useState(0);
+  const timerRef = useRef<ReturnType<typeof setInterval>>(null);
 
-  const prev = () => setIndex((i) => (i === 0 ? children.length - 1 : i - 1));
-  const next = () => setIndex((i) => (i === children.length - 1 ? 0 : i + 1));
+  const resetTimer = () => {
+    if (timerRef.current) clearInterval(timerRef.current);
+    timerRef.current = setInterval(() => {
+      setIndex((i) => (i === children.length - 1 ? 0 : i + 1));
+    }, 5000);
+  };
+
+  const prev = () => {
+    setIndex((i) => (i === 0 ? children.length - 1 : i - 1));
+    resetTimer();
+  };
+
+  const next = () => {
+    setIndex((i) => (i === children.length - 1 ? 0 : i + 1));
+    resetTimer();
+  };
 
   useEffect(() => {
-    const id = setInterval(next, 5000);
-    return () => clearInterval(id);
+    resetTimer();
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
   }, [children.length]);
 
   return (
