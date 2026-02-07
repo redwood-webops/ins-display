@@ -15,6 +15,17 @@ CREATE TABLE IF NOT EXISTS children (
     PRIMARY KEY (parent_id, child_id)
 );
 
+DROP TABLE IF EXISTS users;
+CREATE TABLE IF NOT EXISTS users (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    username TEXT NOT NULL,
+    profile_picture_url TEXT,
+    followers_count INTEGER,
+    media_count INTEGER,
+    access_token TEXT
+);
+
 INSERT INTO posts (id, caption, media_type, media_url, permalink, timestamp)
 VALUES
   ("17992650716868355", "test reel", "VIDEO", "https://scontent-sjc3-1.cdninstagram.com/o1/v/t2/f2/m86/AQMg71--RyXPQZWOr9z9B8DjzdgtVvP9zffVV0apM7J_4G1doCszKVM2q43ueVEHl7ZqipKSjLuQwg5-1rJG3NnEgWzl0-oM43I-ODU.mp4?_nc_cat=103&_nc_sid=5e9851&_nc_ht=scontent-sjc3-1.cdninstagram.com&_nc_ohc=xw3b23AIDHcQ7kNvwGHVte1&efg=eyJ2ZW5jb2RlX3RhZyI6Inhwdl9wcm9ncmVzc2l2ZS5JTlNUQUdSQU0uQ0xJUFMuQzMuNzIwLmRhc2hfYmFzZWxpbmVfMV92MSIsInhwdl9hc3NldF9pZCI6MTc4NTEwNzQ1Mjg2NjgzNDQsImFzc2V0X2FnZV9kYXlzIjowLCJ2aV91c2VjYXNlX2lkIjoxMDA5OSwiZHVyYXRpb25fcyI6NCwidXJsZ2VuX3NvdXJjZSI6Ind3dyJ9&ccb=17-1&_nc_gid=rRQlbq_15qOYhDFoDjbR2w&edm=ANo9K5cEAAAA&_nc_zt=28&vs=924f9d7f0bc4bae&_nc_vs=HBksFQIYUmlnX3hwdl9yZWVsc19wZXJtYW5lbnRfc3JfcHJvZC9BOTQwNDc4OTJEMTIzQkZFNjIxMDU2Rjc0NTk1OTZBM192aWRlb19kYXNoaW5pdC5tcDQVAALIARIAFQIYUWlnX3hwdl9wbGFjZW1lbnRfcGVybWFuZW50X3YyLzkwNDkyMjYyOERFQTI0NTdFMkEwRjcyRjYyQjdDMjg2X2F1ZGlvX2Rhc2hpbml0Lm1wNBUCAsgBEgAoABgAGwKIB3VzZV9vaWwBMRJwcm9ncmVzc2l2ZV9yZWNpcGUBMRUAACbwqp_Cpd21PxUCKAJDMywXQBCIMSbpeNUYEmRhc2hfYmFzZWxpbmVfMV92MREAdf4HZeadAQA&_nc_tpa=Q5bMBQG3Xi9ykfjVm7BJUZNmhex6Oh0xdXKvJIMNyO54GTAPxgwYavR279PfcWl3PtNN2q9W5xtLNUtmpw&oh=00_Afs7IV9hsiBaz3NWL05_tK0uAS3inSUPcl3jMPrSETbznA&oe=698463E0", "https://www.instagram.com/reel/DUURG6VAuCW/", "2026-02-04T00:57:17+0000"),
