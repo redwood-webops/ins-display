@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { MediaType, type Post } from './types/post';
 import styles from './InsCard.module.scss';
 
@@ -18,7 +18,16 @@ function InstagramIcon({ className }: { className?: string }) {
           <stop offset="100%" stopColor="#833AB4" />
         </linearGradient>
       </defs>
-      <rect x="2" y="2" width="20" height="20" rx="5" stroke="url(#instagram-gradient)" strokeWidth="2" fill="none" />
+      <rect
+        x="2"
+        y="2"
+        width="20"
+        height="20"
+        rx="5"
+        stroke="url(#instagram-gradient)"
+        strokeWidth="2"
+        fill="none"
+      />
       <circle cx="12" cy="12" r="4" stroke="url(#instagram-gradient)" strokeWidth="2" fill="none" />
       <circle cx="17.5" cy="6.5" r="1.5" fill="url(#instagram-gradient)" />
     </svg>
@@ -63,8 +72,12 @@ function Carousel({ children }: { children: Post[] }) {
           <Media post={child} key={child.id} />
         ))}
       </div>
-      <button className={`${styles.chevron} ${styles.chevronLeft}`} onClick={prev}>‹</button>
-      <button className={`${styles.chevron} ${styles.chevronRight}`} onClick={next}>›</button>
+      <button className={`${styles.chevron} ${styles.chevronLeft}`} onClick={prev}>
+        ‹
+      </button>
+      <button className={`${styles.chevron} ${styles.chevronRight}`} onClick={next}>
+        ›
+      </button>
     </div>
   );
 }
@@ -91,8 +104,50 @@ function Footer({ post }: Props) {
   );
 }
 
+function Caption({ text }: { text: string }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [displayText, setDisplayText] = useState(text);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+
+    // Reset to full text to measure
+    el.textContent = text;
+
+    // Check if text overflows
+    if (el.scrollHeight <= el.clientHeight) {
+      setDisplayText(text);
+      return;
+    }
+
+    // Binary search for the right length
+    let low = 0;
+    let high = text.length;
+    const ellipsis = '…';
+
+    while (low < high) {
+      const mid = Math.ceil((low + high) / 2);
+      el.textContent = text.slice(0, mid) + ellipsis;
+      if (el.scrollHeight > el.clientHeight) {
+        high = mid - 1;
+      } else {
+        low = mid;
+      }
+    }
+
+    setDisplayText(text.slice(0, low) + ellipsis);
+  }, [text]);
+
+  return (
+    <div ref={ref} className={styles.captionContainer}>
+      {displayText}
+    </div>
+  );
+}
+
 function InsCard({ post }: Props) {
-  const caption = post.caption && <div className={styles.captionContainer}>{post.caption}</div>;
+  const caption = post.caption && <Caption text={post.caption} />;
 
   // Carousel.
   if (post.children) {
