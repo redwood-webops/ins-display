@@ -14,3 +14,5 @@ wrangler d1 execute ins-posts --local --command="SELECT id, caption FROM posts"
 wrangler d1 execute ins-posts --local --command="SELECT * FROM children"
 
 wrangler types
+wrangler secret put INSTAGRAM_CLIENT_ID
+wrangler secret put INSTAGRAM_CLIENT_SECRET
