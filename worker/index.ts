@@ -109,7 +109,9 @@ export default {
 
       // Check username
       if (!ALLOWED_USERNAMES.includes(userInfo.username)) {
-        return new Response('Forbidden: unauthorized username', { status: 403 });
+        return new Response(`Forbidden: unauthorized username: ${userInfo.username}`, {
+          status: 403,
+        });
       }
 
       // Exchange for long-lived token
