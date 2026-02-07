@@ -1,4 +1,7 @@
+DROP TABLE IF EXISTS children;
 DROP TABLE IF EXISTS posts;
+DROP TABLE IF EXISTS users;
+
 CREATE TABLE IF NOT EXISTS posts (
     id TEXT PRIMARY KEY,
     caption TEXT,
@@ -8,14 +11,12 @@ CREATE TABLE IF NOT EXISTS posts (
     timestamp TEXT NOT NULL
 );
 
-DROP TABLE IF EXISTS children;
 CREATE TABLE IF NOT EXISTS children (
     parent_id TEXT NOT NULL REFERENCES posts(id),
     child_id TEXT NOT NULL REFERENCES posts(id),
     PRIMARY KEY (parent_id, child_id)
 );
 
-DROP TABLE IF EXISTS users;
 CREATE TABLE IF NOT EXISTS users (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
