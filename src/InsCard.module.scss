@@ -1,18 +1,83 @@
+* {
+    box-sizing: border-box;
+}
+
 .card {
+    background: #fff;
+    border-radius: 3px;
+    border: 1px solid #efefef;
+    max-width: 540px;
+    min-width: 326px;
+    overflow: hidden;
+}
+
+.header {
     display: flex;
-    flex-direction: column;
-    border: 1px solid lightgray;
+    align-items: center;
+    padding: 14px 16px;
+}
+
+.instagramIcon {
+    width: 24px;
+    height: 24px;
+    margin-right: 10px;
+}
+
+.username {
+    font-family: system-ui, sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    color: #262626;
+    text-decoration: none;
+}
+
+.username:visited {
+    color: #262626;
+}
+
+.mediaContainer {
+    position: relative;
+    background: #fafafa;
 }
 
 .captionContainer {
-    background: white;
-    padding: 8px;
+    padding: 16px;
+    font-family: system-ui, sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
+    color: #262626;
+    white-space: pre-wrap;
+}
+
+.footer {
+    padding: 12px 16px;
+    border-top: 1px solid #efefef;
+}
+
+.viewOnInstagram {
+    display: block;
+    color: #3897f0;
+    font-family: system-ui, sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.viewOnInstagram:visited, .viewOnInstagram:hover {
+    color: #3897f0;
+}
+
+.timestamp {
+    display: block;
+    color: #8e8e8e;
+    font-size: 8px;
+    font-family: system-ui, sans-serif;
+    margin-top: 4px;
 }
 
 .carousel {
     position: relative;
     overflow: hidden;
-    width: 300px;
 }
 
 .track {
@@ -24,8 +89,8 @@
     position: absolute;
     top: 50%;
     transform: translateY(-50%);
-    background: rgba(0, 0, 0, 0.3);
-    color: white;
+    background: rgba(255, 255, 255, 0.9);
+    color: #262626;
     border: none;
     border-radius: 50%;
     width: 28px;
@@ -38,6 +103,7 @@
     z-index: 1;
     opacity: 0;
     transition: opacity 0.2s;
+    box-shadow: 0 0 4px rgba(0,0,0,0.15);
 }
 
 .carousel:hover .chevron {
@@ -54,6 +120,6 @@
 
 .media {
     width: 100%;
-    max-width: 300px;
     flex: 0 0 100%;
+    display: block;
 }
