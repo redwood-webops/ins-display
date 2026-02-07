@@ -3,11 +3,13 @@
 }
 
 .card {
+    display: flex;
+    flex-direction: column;
     background: #fff;
     border-radius: 3px;
     border: 1px solid #efefef;
-    max-width: 540px;
-    min-width: 326px;
+    width: 300px;
+    height: 500px;
     overflow: hidden;
 }
 
@@ -35,18 +37,15 @@
     color: #262626;
 }
 
-.mediaContainer {
-    position: relative;
-    background: #fafafa;
-}
-
 .captionContainer {
+    flex: 1;
     padding: 16px;
     font-family: system-ui, sans-serif;
     font-size: 14px;
     line-height: 1.5;
     color: #262626;
     white-space: pre-wrap;
+    overflow: hidden;
 }
 
 .footer {
@@ -78,6 +77,8 @@
 .carousel {
     position: relative;
     overflow: hidden;
+    width: 300px;
+    height: 300px;
 }
 
 .track {
@@ -119,7 +120,8 @@
 }
 
 .media {
-    width: 100%;
-    flex: 0 0 100%;
+    width: 300px;
+    height: 300px;
     display: block;
+    object-fit: cover;
 }
