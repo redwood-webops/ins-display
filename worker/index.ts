@@ -361,17 +361,14 @@ export default {
        WHERE access_token IS NOT NULL`
     ).run<{ id: string; access_token: string; access_token_expires_at: string | null }>();
 
-    // const fiveDaysFromNow = new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString();
+    const fiveDaysFromNow = new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString();
 
     for (const user of allUsers) {
       try {
         let token = user.access_token;
 
         // Refresh token if expiring within 5 days
-
-        // if (user.access_token_expires_at && user.access_token_expires_at < fiveDaysFromNow) {
-        // Always refresh token for testing.
-        if (true) {
+        if (user.access_token_expires_at && user.access_token_expires_at < fiveDaysFromNow) {
           const result = await refreshAccessToken(env, user.id, user.access_token);
           token = result.token;
           console.log(`Refreshed token for user ${user.id}`);
