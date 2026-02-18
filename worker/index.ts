@@ -76,7 +76,14 @@ async function refreshUserPosts(env: Env, userId: string, accessToken: string): 
       env.DB.prepare(
         `INSERT OR REPLACE INTO posts (id, caption, media_type, media_url, permalink, timestamp)
          VALUES (?, ?, ?, ?, ?, ?)`
-      ).bind(post.id, post.caption ?? null, post.media_type, post.media_url ?? null, post.permalink ?? null, post.timestamp)
+      ).bind(
+        post.id,
+        post.caption ?? null,
+        post.media_type,
+        post.media_url ?? null,
+        post.permalink ?? null,
+        post.timestamp
+      )
     );
 
     if (post.children?.data) {
@@ -85,10 +92,20 @@ async function refreshUserPosts(env: Env, userId: string, accessToken: string): 
           env.DB.prepare(
             `INSERT OR REPLACE INTO posts (id, caption, media_type, media_url, permalink, timestamp)
              VALUES (?, ?, ?, ?, ?, ?)`
-          ).bind(child.id, null, child.media_type, child.media_url ?? null, child.permalink ?? null, child.timestamp)
+          ).bind(
+            child.id,
+            null,
+            child.media_type,
+            child.media_url ?? null,
+            child.permalink ?? null,
+            child.timestamp
+          )
         );
         statements.push(
-          env.DB.prepare(`INSERT OR IGNORE INTO children (parent_id, child_id) VALUES (?, ?)`).bind(post.id, child.id)
+          env.DB.prepare(`INSERT OR IGNORE INTO children (parent_id, child_id) VALUES (?, ?)`).bind(
+            post.id,
+            child.id
+          )
         );
       }
     }
@@ -274,7 +291,9 @@ async function handleGetPosts(env: Env, url: URL): Promise<Response> {
 
   const post = await env.DB.prepare(
     'SELECT * FROM posts WHERE caption IS NOT NULL ORDER BY timestamp DESC LIMIT 1 OFFSET ?'
-  ).bind(idx).first<Post>();
+  )
+    .bind(idx)
+    .first<Post>();
 
   if (!post) {
     return Response.json(null);
@@ -283,7 +302,9 @@ async function handleGetPosts(env: Env, url: URL): Promise<Response> {
   // Fetch children for this post
   const { results: childRows } = await env.DB.prepare(
     `SELECT p.* FROM children c JOIN posts p ON c.child_id = p.id WHERE c.parent_id = ?`
-  ).bind(post.id).run<Post>();
+  )
+    .bind(post.id)
+    .run<Post>();
 
   return Response.json({
     ...post,
@@ -329,25 +350,34 @@ export default {
     }
   },
 
-  async scheduled(_controller: ScheduledController, env: Env, _ctx: ExecutionContext): Promise<void> {
-    // Find users with tokens expiring in the next 5 days
-    const fiveDaysFromNow = new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString();
+  async scheduled(
+    _controller: ScheduledController,
+    env: Env,
+    _ctx: ExecutionContext
+  ): Promise<void> {
+    // Get all users with valid tokens
+    const { results: allUsers } = await env.DB.prepare(
+      `SELECT id, access_token, access_token_expires_at FROM users
+       WHERE access_token IS NOT NULL`
+    ).run<{ id: string; access_token: string; access_token_expires_at: string | null }>();
 
-    const { results: users } = await env.DB.prepare(
-      `SELECT id, access_token FROM users
-       WHERE access_token IS NOT NULL
-       AND access_token_expires_at IS NOT NULL
-       AND access_token_expires_at < ?`
-    )
-      .bind(fiveDaysFromNow)
-      .run<{ id: string; access_token: string }>();
+    // const fiveDaysFromNow = new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString();
 
-    for (const user of users) {
+    for (const user of allUsers) {
       try {
-        const { token } = await refreshAccessToken(env, user.id, user.access_token);
-        console.log(`Refreshed token for user ${user.id}`);
+        let token = user.access_token;
 
-        // Refresh posts after auth refresh
+        // Refresh token if expiring within 5 days
+
+        // if (user.access_token_expires_at && user.access_token_expires_at < fiveDaysFromNow) {
+        // Always refresh token for testing.
+        if (true) {
+          const result = await refreshAccessToken(env, user.id, user.access_token);
+          token = result.token;
+          console.log(`Refreshed token for user ${user.id}`);
+        }
+
+        // Refresh posts for all users
         const postsCount = await refreshUserPosts(env, user.id, token);
         console.log(`Refreshed ${postsCount} posts for user ${user.id}`);
       } catch (error) {
