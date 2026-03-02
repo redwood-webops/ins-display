@@ -4,24 +4,26 @@ import InsCard from './InsCard';
 import styles from './App.module.scss';
 
 function App() {
-  const [post, setPost] = React.useState<Post | null>(null);
+  const [posts, setPosts] = React.useState<Post[]>([]);
 
   React.useEffect(() => {
     (async () => {
-      const idx = new URLSearchParams(window.location.search).get('idx') ?? '0';
-      const resp = await fetch(`/api/posts?idx=${idx}`);
+      const params = new URLSearchParams(window.location.search);
+      const idx = params.get('idx') ?? '0';
+      const range = params.get('range') ?? '1';
+      const resp = await fetch(`/api/posts?idx=${idx}&range=${range}`);
       const data = await resp.json();
-      setPost(data);
+      setPosts(data);
     })();
   }, []);
 
-  if (!post) {
+  if (posts.length === 0) {
     return null;
   }
 
   return (
     <div className={styles.postsContainer}>
-      <InsCard post={post} />
+      <InsCard posts={posts} />
     </div>
   );
 }

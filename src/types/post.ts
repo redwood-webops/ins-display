@@ -10,7 +10,15 @@ export interface Post {
 }
 
 export enum MediaType {
-  IMAGE = "IMAGE",
-  VIDEO = "VIDEO",
-  CAROUSEL = "CAROUSEL_ALBUM",
+  IMAGE = 'IMAGE',
+  VIDEO = 'VIDEO',
+  CAROUSEL = 'CAROUSEL_ALBUM',
+}
+
+export interface Media {
+  id: string;
+  caption: string | null;
+  media_url: string | null;
+  media_type: 'IMAGE' | 'VIDEO';
+  timestamp: string;
 }

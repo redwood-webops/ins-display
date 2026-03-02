@@ -289,27 +289,36 @@ async function handleGetPosts(env: Env, url: URL): Promise<Response> {
     return new Response('Invalid idx parameter', { status: 400 });
   }
 
-  const post = await env.DB.prepare(
-    'SELECT * FROM posts WHERE caption IS NOT NULL ORDER BY timestamp DESC LIMIT 1 OFFSET ?'
-  )
-    .bind(idx)
-    .first<Post>();
-
-  if (!post) {
-    return Response.json(null);
+  const range = parseInt(url.searchParams.get('range') ?? '1', 10);
+  if (isNaN(range) || range < 1 || range > 10) {
+    return new Response('Invalid range parameter (must be 1-10)', { status: 400 });
   }
 
-  // Fetch children for this post
-  const { results: childRows } = await env.DB.prepare(
-    `SELECT p.* FROM children c JOIN posts p ON c.child_id = p.id WHERE c.parent_id = ?`
+  const { results: posts } = await env.DB.prepare(
+    'SELECT * FROM posts WHERE caption IS NOT NULL ORDER BY timestamp DESC LIMIT ? OFFSET ?'
   )
-    .bind(post.id)
+    .bind(range, idx)
     .run<Post>();
 
-  return Response.json({
-    ...post,
-    children: childRows.length > 0 ? childRows : null,
-  });
+  if (posts.length === 0) {
+    return Response.json([]);
+  }
+
+  // Fetch children for all posts
+  const postsWithChildren: Post[] = [];
+  for (const post of posts) {
+    const { results: childRows } = await env.DB.prepare(
+      `SELECT p.* FROM children c JOIN posts p ON c.child_id = p.id WHERE c.parent_id = ?`
+    )
+      .bind(post.id)
+      .run<Post>();
+    postsWithChildren.push({
+      ...post,
+      children: childRows.length > 0 ? childRows : null,
+    });
+  }
+
+  return Response.json(postsWithChildren);
 }
 
 async function handleRequest(request: Request, env: Env): Promise<Response> {

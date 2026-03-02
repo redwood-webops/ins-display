@@ -1,9 +1,47 @@
 import { useEffect, useRef, useState } from 'react';
-import { MediaType, type Post } from './types/post';
+import { MediaType, type Post, type Media } from './types/post';
 import styles from './InsCard.module.scss';
 
 interface Props {
-  post: Post;
+  posts: Post[];
+}
+
+function postsToMedia(posts: Post[]): Media[] {
+  const items: Media[] = [];
+  for (const post of posts) {
+    if (post.media_type === MediaType.CAROUSEL && post.children) {
+      for (const child of post.children) {
+        items.push({
+          id: child.id,
+          caption: child.caption,
+          media_url: child.media_url,
+          media_type: child.media_type as 'IMAGE' | 'VIDEO',
+          timestamp: child.timestamp,
+        });
+      }
+    } else if (post.media_type !== MediaType.CAROUSEL) {
+      items.push({
+        id: post.id,
+        caption: post.caption,
+        media_url: post.media_url,
+        media_type: post.media_type as 'IMAGE' | 'VIDEO',
+        timestamp: post.timestamp,
+      });
+    }
+  }
+  return items;
+}
+
+function Media({ media }: { media: Media }) {
+  if (media.media_type === 'IMAGE') {
+    return <img className={styles.media} src={media.media_url ?? undefined} />;
+  }
+  if (media.media_type === 'VIDEO') {
+    return (
+      <video autoPlay loop muted className={styles.media} src={media.media_url ?? undefined} />
+    );
+  }
+  return null;
 }
 
 function InstagramIcon({ className }: { className?: string }) {
@@ -44,34 +82,31 @@ function formatDate(timestamp: string | null | undefined): string {
   });
 }
 
-function Media({ post }: Props) {
-  if (post.media_type === MediaType.IMAGE) {
-    return <img className={styles.media} src={post.media_url ?? undefined} />;
-  }
-  if (post.media_type === MediaType.VIDEO) {
-    return <video autoPlay loop muted className={styles.media} src={post.media_url ?? undefined} />;
-  }
-  return null;
+interface CarouselProps {
+  items: Media[];
+  index: number;
+  setIndex: React.Dispatch<React.SetStateAction<number>>;
 }
 
-function Carousel({ children }: { children: Post[] }) {
-  const [index, setIndex] = useState(0);
+function Carousel({ items, index, setIndex }: CarouselProps) {
   const timerRef = useRef<ReturnType<typeof setInterval>>(null);
 
   const resetTimer = () => {
     if (timerRef.current) clearInterval(timerRef.current);
-    timerRef.current = setInterval(() => {
-      setIndex((i) => (i === children.length - 1 ? 0 : i + 1));
-    }, 5000);
+    if (items.length > 1) {
+      timerRef.current = setInterval(() => {
+        setIndex((i) => (i === items.length - 1 ? 0 : i + 1));
+      }, 5000);
+    }
   };
 
   const prev = () => {
-    setIndex((i) => (i === 0 ? children.length - 1 : i - 1));
+    setIndex((i) => (i === 0 ? items.length - 1 : i - 1));
     resetTimer();
   };
 
   const next = () => {
-    setIndex((i) => (i === children.length - 1 ? 0 : i + 1));
+    setIndex((i) => (i === items.length - 1 ? 0 : i + 1));
     resetTimer();
   };
 
@@ -80,21 +115,25 @@ function Carousel({ children }: { children: Post[] }) {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [children.length]);
+  }, [items.length]);
 
   return (
     <div className={styles.carousel}>
       <div className={styles.track} style={{ transform: `translateX(-${index * 100}%)` }}>
-        {children.map((child) => (
-          <Media post={child} key={child.id} />
+        {items.map((item) => (
+          <Media media={item} key={item.id} />
         ))}
       </div>
-      <button className={`${styles.chevron} ${styles.chevronLeft}`} onClick={prev}>
-        ‹
-      </button>
-      <button className={`${styles.chevron} ${styles.chevronRight}`} onClick={next}>
-        ›
-      </button>
+      {items.length > 1 && (
+        <>
+          <button className={`${styles.chevron} ${styles.chevronLeft}`} onClick={prev}>
+            ‹
+          </button>
+          <button className={`${styles.chevron} ${styles.chevronRight}`} onClick={next}>
+            ›
+          </button>
+        </>
+      )}
     </div>
   );
 }
@@ -106,17 +145,6 @@ function Header() {
       <a href="https://www.instagram.com/redwoodkyudojo/" className={styles.username}>
         redwoodkyudojo
       </a>
-    </div>
-  );
-}
-
-function Footer({ post }: Props) {
-  return (
-    <div className={styles.footer}>
-      <a href={post.permalink ?? '#'} className={styles.viewOnInstagram}>
-        View this post on Instagram
-      </a>
-      <time className={styles.timestamp}>{formatDate(post.timestamp)}</time>
     </div>
   );
 }
@@ -163,28 +191,21 @@ function Caption({ text }: { text: string }) {
   );
 }
 
-function InsCard({ post }: Props) {
-  const caption = post.caption && <Caption text={post.caption} />;
+function InsCard({ posts }: Props) {
+  const mediaList = postsToMedia(posts);
+  const [index, setIndex] = useState(0);
 
-  // Carousel.
-  if (post.children) {
-    return (
-      <div className={styles.card}>
-        <Header />
-        <Carousel>{post.children}</Carousel>
-        {caption}
-        <Footer post={post} />
-      </div>
-    );
+  if (mediaList.length === 0) {
+    return null;
   }
 
-  // Image or video.
+  const selectedMedia = mediaList[index];
+
   return (
     <div className={styles.card}>
       <Header />
-      <Media post={post} />
-      {caption}
-      <Footer post={post} />
+      <Carousel items={mediaList} index={index} setIndex={setIndex} />
+      {selectedMedia?.caption && <Caption text={selectedMedia.caption} />}
     </div>
   );
 }
