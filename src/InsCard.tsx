@@ -13,10 +13,10 @@ function postsToMedia(posts: Post[]): Media[] {
       for (const child of post.children) {
         items.push({
           id: child.id,
-          caption: child.caption,
+          caption: post.caption,
           media_url: child.media_url,
           media_type: child.media_type as 'IMAGE' | 'VIDEO',
-          timestamp: child.timestamp,
+          timestamp: post.timestamp,
         });
       }
     } else if (post.media_type !== MediaType.CAROUSEL) {
@@ -109,7 +109,7 @@ function Carousel({ items, index, setIndex }: CarouselProps) {
 
   return (
     <div className={styles.carousel}>
-      <div className={styles.track} style={{ transform: `translateX(-${index * 100}%)` }}>
+      <div className={styles.track} style={{ transform: `translateX(-${index * 400}px)` }}>
         {items.map((item) => (
           <Media media={item} key={item.id} />
         ))}

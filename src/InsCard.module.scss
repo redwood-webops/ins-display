@@ -8,7 +8,7 @@
     background: #fff;
     border-radius: 3px;
     border: 1px solid #efefef;
-    width: 500px;
+    width: 400px;
     height: 500px;
     overflow: hidden;
 }
@@ -72,8 +72,6 @@
 .carousel {
     position: relative;
     overflow: hidden;
-    width: 300px;
-    height: 300px;
 }
 
 .track {
@@ -115,8 +113,10 @@
 }
 
 .media {
-    width: 300px;
+    width: 400px;
     height: 300px;
-    display: block;
     object-fit: cover;
+    display: block;
+    flex-shrink: 0;
+    max-width: none;
 }
