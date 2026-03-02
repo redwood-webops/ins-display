@@ -72,16 +72,6 @@ function InstagramIcon({ className }: { className?: string }) {
   );
 }
 
-function formatDate(timestamp: string | null | undefined): string {
-  if (!timestamp) return '';
-  const date = new Date(timestamp);
-  return date.toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  });
-}
-
 interface CarouselProps {
   items: Media[];
   index: number;
